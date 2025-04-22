@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Othello Web</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 50px);
+      grid-template-rows: repeat(8, 50px);
+      gap: 1px;
+      background-color: #006400;
+    }
+    .cell {
+      width: 50px;
+      height: 50px;
+      background-color: green;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .black {
+      background-color: black;
+      border-radius: 50%;
+      width: 80%;
+      height: 80%;
+    }
+    .white {
+      background-color: white;
+      border-radius: 50%;
+      width: 80%;
+      height: 80%;
+    }
+  </style>
+</head>
+<body>
+  <h1>オセロ Web版</h1>
+  <div id="board"></div>
+
+  <script>
+    const API = "http://localhost:5000";
+    const boardElem = document.getElementById("board");
+    let board = [];
+    let player = 1; // Human (black)
+
+    async function fetchBoard() {
+      const res = await fetch(`${API}/init`);
+      const data = await res.json();
+      board = data.board;
+      renderBoard();
+    }
+
+    async function getValidMoves() {
+      const res = await fetch(`${API}/valid_moves`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ board, player })
+      });
+      const data = await res.json();
+      return data.valid_moves;
+    }
+
+    async function handleClick(x, y) {
+      const valid = await getValidMoves();
+      const isValid = valid.some(([vx, vy]) => vx === x && vy === y);
+      if (!isValid) return;
+
+      await applyMove(x, y, player);
+      player = 2;
+      renderBoard();
+
+      setTimeout(aiTurn, 500);
+    }
+
+    async function applyMove(x, y, p) {
+      const res = await fetch(`${API}/apply_move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ board, player: p, move: [x, y] })
+      });
+      const data = await res.json();
+      board = data.board;
+    }
+
+    async function aiTurn() {
+      const res = await fetch(`${API}/ai_move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ board, player })
+      });
+      const data = await res.json();
+      if (data.move) {
+        await applyMove(data.move[0], data.move[1], player);
+        player = 1;
+        renderBoard();
+      }
+    }
+
+    function renderBoard() {
+      boardElem.innerHTML = "";
+      for (let x = 0; x < 8; x++) {
+        for (let y = 0; y < 8; y++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          if (board[x][y] === 1) {
+            const disc = document.createElement("div");
+            disc.className = "black";
+            cell.appendChild(disc);
+          } else if (board[x][y] === 2) {
+            const disc = document.createElement("div");
+            disc.className = "white";
+            cell.appendChild(disc);
+          }
+          cell.onclick = () => handleClick(x, y);
+          boardElem.appendChild(cell);
+        }
+      }
+    }
+
+    fetchBoard();
+  </script>
+</body>
+</html>
