@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from othello_ai import init_board, get_valid_moves, apply_move, ai_move
+import os
 
 app = Flask(__name__)
-CORS(app)  # CORSエラーを防ぐために有効化
+CORS(app)  # クロスオリジン対応
 
 @app.route("/init", methods=["GET"])
 def init():
@@ -36,4 +37,6 @@ def ai():
     return jsonify(move=move)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
